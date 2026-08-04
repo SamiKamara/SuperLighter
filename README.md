@@ -2,6 +2,14 @@
 
 SuperLighter is a standalone Windows utility for adjusting the rendered desktop image beyond the standard Windows brightness controls. It combines a click-through topmost overlay, the display gamma LUT, and a full-screen color matrix in one lightweight tray application.
 
+## Download
+
+Download the ready-to-run application from the [latest GitHub Release](https://github.com/SamiKamara/SuperLighter/releases/latest), or use the [direct SuperLighter-win-x64.exe download](https://github.com/SamiKamara/SuperLighter/releases/latest/download/SuperLighter-win-x64.exe).
+
+The release EXE is self-contained: extract nothing and install no SDK. `SHA256SUMS.txt` is provided beside it for integrity verification. Because the executable is not currently code-signed, Windows SmartScreen may show an unknown-publisher warning.
+
+The repository is currently private, so download access requires a GitHub account that has access to it.
+
 ## Features
 
 - Gamma adjustment from `0.50` to `3.00`
@@ -58,6 +66,8 @@ The script creates one self-contained file at:
 artifacts\publish\win-x64\SuperLighter.exe
 ```
 
+Tagged releases are built and published automatically by GitHub Actions. See [docs/RELEASING.md](docs/RELEASING.md) for the versioning, tagging, validation, rerun, and checksum process.
+
 ## Settings and migration
 
 Settings are stored locally at:
@@ -89,5 +99,8 @@ The original gamma LUT and color matrix are retained in memory and restored when
 SuperLighter.App/       WinForms application source
 SuperLighter.sln        Visual Studio / dotnet solution
 publish-win-x64.ps1     Self-contained single-file publish script
+CHANGELOG.md             Version history
+docs/RELEASING.md        Release process and verification guide
+.github/workflows/       Automated tagged release workflow
 README.md               Project documentation
 ```
