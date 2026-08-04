@@ -19,6 +19,7 @@ coverage/
 
 # Local publish and QA files
 publish/
+release-assets/
 ui-preview*.png
 *.log
 
