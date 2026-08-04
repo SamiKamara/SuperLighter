@@ -14,6 +14,7 @@ internal sealed class SuperLighterApplicationContext : ApplicationContext
     private readonly Control _uiDispatcher = new();
     private readonly EventWaitHandle _openSettingsSignal;
     private readonly RegisteredWaitHandle _openSettingsSignalRegistration;
+    private readonly Icon _appIcon = AppIcon.Load();
     private readonly NotifyIcon _notifyIcon;
     private readonly ContextMenuStrip _trayMenu = new();
     private readonly ToolStripMenuItem _enabledMenuItem;
@@ -63,7 +64,7 @@ internal sealed class SuperLighterApplicationContext : ApplicationContext
         _notifyIcon = new NotifyIcon
         {
             ContextMenuStrip = _trayMenu,
-            Icon = SystemIcons.Application,
+            Icon = _appIcon,
             Text = "SuperLighter",
             Visible = true
         };
@@ -308,6 +309,7 @@ internal sealed class SuperLighterApplicationContext : ApplicationContext
             _activeSettingsForm?.Dispose();
             _notifyIcon.Visible = false;
             _notifyIcon.Dispose();
+            _appIcon.Dispose();
             _trayMenu.Dispose();
             _hotkeyWindow.Dispose();
             _overlayManager.Dispose();

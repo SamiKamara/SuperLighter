@@ -10,7 +10,12 @@
     <RootNamespace>SuperLighter.App</RootNamespace>
     <Product>SuperLighter</Product>
     <Description>Always-on-top brightness, contrast, gamma, and saturation enhancement for Windows.</Description>
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
+    <ApplicationIcon>Assets\SuperLighter.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\SuperLighter.ico" LogicalName="SuperLighter.App.Assets.SuperLighter.ico" />
+  </ItemGroup>
 
 </Project>

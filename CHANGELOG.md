@@ -2,6 +2,12 @@
 
 All notable SuperLighter changes are documented here. Versions follow semantic versioning.
 
+## [1.2.1] - 2026-08-05
+
+### Added
+
+- A custom three-color SuperLighter icon for the executable, system tray, and settings window
+
 ## [1.2.0] - 2026-08-05
 
 ### Added

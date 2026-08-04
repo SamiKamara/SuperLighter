@@ -1,5 +1,9 @@
 # SuperLighter
 
+<p align="center">
+  <img src="SuperLighter.App/Assets/SuperLighter.png" alt="SuperLighter icon" width="96" height="96">
+</p>
+
 SuperLighter is a standalone Windows utility for adjusting the rendered desktop image beyond the standard Windows brightness controls. It combines a click-through topmost overlay, the display gamma LUT, and a full-screen color matrix in one lightweight tray application.
 
 ## Download
