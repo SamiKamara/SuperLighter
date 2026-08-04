@@ -23,7 +23,7 @@ The stable direct-download URL is:
 https://github.com/SamiKamara/SuperLighter/releases/latest/download/SuperLighter-win-x64.exe
 ```
 
-While the repository is private, downloads require a GitHub account with access to the repository. The same links work without authentication if the repository is later made public.
+The repository and its releases are public. Both links work without authentication.
 
 ## Automated release process
 

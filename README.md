@@ -8,7 +8,7 @@ Download the ready-to-run application from the [latest GitHub Release](https://g
 
 The release EXE is self-contained: extract nothing and install no SDK. `SHA256SUMS.txt` is provided beside it for integrity verification. Because the executable is not currently code-signed, Windows SmartScreen may show an unknown-publisher warning.
 
-The repository is currently private, so download access requires a GitHub account that has access to it.
+The repository and its releases are public, so the application can be downloaded without a GitHub account.
 
 ## Features
 
