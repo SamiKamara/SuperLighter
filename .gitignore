@@ -1,0 +1,34 @@
+# Build output
+**/bin/
+**/obj/
+artifacts/
+
+# Visual Studio and Rider
+.vs/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Test and coverage output
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# Local publish and QA files
+publish/
+ui-preview*.png
+*.log
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local settings and secrets
+settings.json
+*.secrets.json
+.env
+.env.*
