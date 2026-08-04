@@ -48,6 +48,9 @@ internal static class SelfTests
             RequireApproximately(grayscale.Transform[5], grayscale.Transform[6], "grayscale green contribution");
             RequireApproximately(grayscale.Transform[10], grayscale.Transform[11], "grayscale blue contribution");
 
+            using var appIcon = AppIcon.Load();
+            Require(appIcon.Width >= 16 && appIcon.Height >= 16, "embedded application icon");
+
             using var settingsForm = new SettingsForm(new AppSettings(), _ => { });
             _ = settingsForm.Handle;
 

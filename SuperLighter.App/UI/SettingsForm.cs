@@ -29,6 +29,7 @@ internal sealed class SettingsForm : Form
     private readonly Panel _scrollPanel = new();
     private readonly List<Label> _wrappingLabels = [];
     private readonly System.Windows.Forms.Timer _previewTimer = new() { Interval = 90 };
+    private readonly Icon _windowIcon = AppIcon.Load();
     private bool _saved;
 
     public AppSettings ResultSettings { get; private set; }
@@ -50,7 +51,8 @@ internal sealed class SettingsForm : Form
         FormBorderStyle = FormBorderStyle.Sizable;
         MaximizeBox = false;
         MinimizeBox = false;
-        ShowIcon = false;
+        Icon = _windowIcon;
+        ShowIcon = true;
         StartPosition = FormStartPosition.CenterScreen;
         TopMost = true;
 
@@ -543,6 +545,7 @@ internal sealed class SettingsForm : Form
         if (disposing)
         {
             _previewTimer.Dispose();
+            _windowIcon.Dispose();
         }
 
         base.Dispose(disposing);
