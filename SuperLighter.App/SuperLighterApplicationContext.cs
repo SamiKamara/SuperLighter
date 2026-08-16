@@ -10,6 +10,7 @@ internal sealed class SuperLighterApplicationContext : ApplicationContext
     private readonly GammaRampService _gammaRampService = new();
     private readonly SaturationService _saturationService = new();
     private readonly OverlayManager _overlayManager = new();
+    private readonly MonitorBrightnessService _monitorBrightnessService = new();
     private readonly SystemHotkeyWindow _hotkeyWindow = new();
     private readonly Control _uiDispatcher = new();
     private readonly EventWaitHandle _openSettingsSignal;
@@ -33,6 +34,8 @@ internal sealed class SuperLighterApplicationContext : ApplicationContext
         _settings = _settingsStore.Load();
         _settings.Normalize();
         _ = _uiDispatcher.Handle;
+        _monitorBrightnessService.Refresh();
+        ApplyStoredMonitorBrightness();
 
         _openSettingsSignalRegistration = ThreadPool.RegisterWaitForSingleObject(
             _openSettingsSignal,
@@ -122,6 +125,11 @@ internal sealed class SuperLighterApplicationContext : ApplicationContext
 
     private void RegisterHotkeys()
     {
+        if (_isExiting)
+        {
+            return;
+        }
+
         var failures = _hotkeyWindow.ReplaceBindings(_settings);
         if (failures.Count == 0 || _hotkeyWarningShown)
         {
@@ -180,7 +188,11 @@ internal sealed class SuperLighterApplicationContext : ApplicationContext
         }
 
         _hotkeyWindow.ClearBindings();
-        _activeSettingsForm = new SettingsForm(_settings, ApplySettings);
+        _activeSettingsForm = new SettingsForm(
+            _settings,
+            ApplySettings,
+            _monitorBrightnessService.Monitors,
+            _monitorBrightnessService.TrySetBrightness);
         try
         {
             if (_activeSettingsForm.ShowDialog() == DialogResult.OK)
@@ -270,6 +282,17 @@ internal sealed class SuperLighterApplicationContext : ApplicationContext
 
             _uiDispatcher.BeginInvoke(new MethodInvoker(() =>
             {
+                _monitorBrightnessService.Refresh();
+                if (_activeSettingsForm is not null && !_activeSettingsForm.IsDisposed)
+                {
+                    _activeSettingsForm.RefreshMonitorBrightnessControls(
+                        _monitorBrightnessService.Monitors);
+                }
+                else
+                {
+                    ApplyStoredMonitorBrightness();
+                }
+
                 _overlayManager.RefreshDisplays();
                 ApplySettings(_settings);
             }));
@@ -282,7 +305,22 @@ internal sealed class SuperLighterApplicationContext : ApplicationContext
         }
     }
 
-    private void ExitApplication()
+    private void ApplyStoredMonitorBrightness()
+    {
+        foreach (var monitor in _monitorBrightnessService.Monitors)
+        {
+            if (_settings.MonitorBrightnessPercent.TryGetValue(
+                    monitor.Id,
+                    out var brightnessPercent))
+            {
+                _monitorBrightnessService.TrySetBrightness(
+                    monitor.Id,
+                    brightnessPercent);
+            }
+        }
+    }
+
+    internal void ExitApplication()
     {
         if (_isExiting)
         {
@@ -290,8 +328,16 @@ internal sealed class SuperLighterApplicationContext : ApplicationContext
         }
 
         _isExiting = true;
-        RestoreDisplayEffects();
+        _startupTimer.Stop();
+        _topMostTimer.Stop();
+        _hotkeyWindow.ClearBindings();
         _notifyIcon.Visible = false;
+        if (_activeSettingsForm is not null && !_activeSettingsForm.IsDisposed)
+        {
+            _activeSettingsForm.Close();
+        }
+
+        RestoreDisplayEffects();
         ExitThread();
     }
 
@@ -312,6 +358,7 @@ internal sealed class SuperLighterApplicationContext : ApplicationContext
             _appIcon.Dispose();
             _trayMenu.Dispose();
             _hotkeyWindow.Dispose();
+            _monitorBrightnessService.Dispose();
             _overlayManager.Dispose();
             _saturationService.Dispose();
             _gammaRampService.Dispose();

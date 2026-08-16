@@ -25,6 +25,11 @@ internal static class Program
             return 0;
         }
 
+        if (args.Contains("--exit-test", StringComparer.OrdinalIgnoreCase))
+        {
+            return RunExitTest();
+        }
+
         using var singleInstanceMutex = new Mutex(true, SingleInstanceMutexName, out var createdNew);
         if (!createdNew)
         {
@@ -70,5 +75,22 @@ internal static class Program
         catch (WaitHandleCannotBeOpenedException)
         {
         }
+    }
+
+    private static int RunExitTest()
+    {
+        using var openSettingsEvent = new EventWaitHandle(
+            false,
+            EventResetMode.AutoReset);
+        using var context = new SuperLighterApplicationContext(openSettingsEvent);
+        using var exitTimer = new System.Windows.Forms.Timer { Interval = 250 };
+        exitTimer.Tick += (_, _) =>
+        {
+            exitTimer.Stop();
+            context.ExitApplication();
+        };
+        exitTimer.Start();
+        Application.Run(context);
+        return 0;
     }
 }

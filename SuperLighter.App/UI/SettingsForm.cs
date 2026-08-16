@@ -1,10 +1,20 @@
 using System.Globalization;
 using SuperLighter.App.Native;
+using SuperLighter.App.Services;
 
 namespace SuperLighter.App.UI;
 
 internal sealed class SettingsForm : Form
 {
+    private sealed class MonitorBrightnessBinding
+    {
+        public required MonitorBrightnessInfo Monitor { get; init; }
+        public required DarkSlider Slider { get; init; }
+        public required Label ValueLabel { get; init; }
+    }
+
+    private const int FooterHeight = 66;
+
     private static readonly Color WindowBackground = Color.FromArgb(20, 23, 29);
     private static readonly Color CardBackground = Color.FromArgb(30, 34, 42);
     private static readonly Color InputBackground = Color.FromArgb(24, 28, 35);
@@ -12,9 +22,11 @@ internal sealed class SettingsForm : Form
     private static readonly Color PrimaryText = Color.FromArgb(241, 244, 249);
     private static readonly Color SecondaryText = Color.FromArgb(166, 176, 192);
     private static readonly Color Accent = Color.FromArgb(92, 160, 255);
+    private static readonly Color ErrorText = Color.FromArgb(255, 173, 92);
 
     private readonly AppSettings _initialSettings;
     private readonly Action<AppSettings> _preview;
+    private readonly Func<string, int, bool> _setMonitorBrightness;
     private readonly CheckBox _enabledCheckBox = new();
     private readonly DarkSlider _gammaSlider = new();
     private readonly DarkSlider _contrastSlider = new();
@@ -27,19 +39,32 @@ internal sealed class SettingsForm : Form
     private readonly HotkeyTextBox _toggleHotkeyTextBox = new();
     private readonly HotkeyTextBox _openSettingsHotkeyTextBox = new();
     private readonly Panel _scrollPanel = new();
+    private readonly TableLayoutPanel _contentPanel;
+    private readonly TableLayoutPanel _monitorBrightnessPanel = new();
+    private readonly List<MonitorBrightnessBinding> _monitorBrightnessBindings = [];
+    private readonly Dictionary<string, int> _initialMonitorBrightness =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _pendingMonitorBrightness =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Label> _wrappingLabels = [];
     private readonly System.Windows.Forms.Timer _previewTimer = new() { Interval = 90 };
+    private readonly System.Windows.Forms.Timer _monitorBrightnessTimer = new() { Interval = 120 };
     private readonly Icon _windowIcon = AppIcon.Load();
     private bool _saved;
 
     public AppSettings ResultSettings { get; private set; }
 
-    public SettingsForm(AppSettings settings, Action<AppSettings> preview)
+    public SettingsForm(
+        AppSettings settings,
+        Action<AppSettings> preview,
+        IReadOnlyList<MonitorBrightnessInfo>? adjustableMonitors = null,
+        Func<string, int, bool>? setMonitorBrightness = null)
     {
         settings.Normalize();
         _initialSettings = settings.Clone();
         ResultSettings = settings.Clone();
         _preview = preview;
+        _setMonitorBrightness = setMonitorBrightness ?? ((_, _) => false);
 
         Text = "SuperLighter";
         AutoScaleMode = AutoScaleMode.Dpi;
@@ -56,7 +81,7 @@ internal sealed class SettingsForm : Form
         StartPosition = FormStartPosition.CenterScreen;
         TopMost = true;
 
-        ConfigureSlider(_gammaSlider, 50, 300, 5, 25);
+        ConfigureSlider(_gammaSlider, 50, 600, 5, 25);
         ConfigureSlider(_contrastSlider, 50, 200, 5, 10);
         ConfigureSlider(_saturationSlider, 0, 300, 5, 25);
         ConfigureSlider(_brightnessSlider, 0, 60, 1, 5);
@@ -73,14 +98,14 @@ internal sealed class SettingsForm : Form
             Padding = Padding.Empty
         };
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 66));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, FooterHeight));
 
         _scrollPanel.AutoScroll = true;
         _scrollPanel.BackColor = WindowBackground;
         _scrollPanel.Dock = DockStyle.Fill;
         _scrollPanel.Padding = new Padding(20, 18, 20, 12);
 
-        var content = new TableLayoutPanel
+        _contentPanel = new TableLayoutPanel
         {
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
@@ -90,34 +115,36 @@ internal sealed class SettingsForm : Form
             Margin = Padding.Empty,
             Padding = Padding.Empty
         };
-        content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        _contentPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-        AddContent(content, CreateHeader());
-        AddContent(content, CreateEnabledCard());
-        AddContent(content, CreateSliderCard(
+        AddContent(_contentPanel, CreateHeader());
+        AddContent(_contentPanel, CreateEnabledCard());
+        AddContent(_contentPanel, CreateSliderCard(
             "Gamma",
             "Raises or lowers midtones without changing the physical backlight. 1.00 is neutral.",
             _gammaSlider,
             _gammaValueLabel));
-        AddContent(content, CreateSliderCard(
+        AddContent(_contentPanel, CreateSliderCard(
             "Contrast",
             "Expands or compresses the tonal range. 100% is neutral; high values may clip shadows and highlights.",
             _contrastSlider,
             _contrastValueLabel));
-        AddContent(content, CreateSliderCard(
+        AddContent(_contentPanel, CreateSliderCard(
             "Saturation",
             "Controls color intensity. 0% is grayscale, 100% is neutral, and higher values produce stronger colors.",
             _saturationSlider,
             _saturationValueLabel));
-        AddContent(content, CreateSliderCard(
+        AddContent(_contentPanel, CreateSliderCard(
             "Brightness overlay",
             "Adds a click-through white topmost layer. It lifts dark areas, so high values also make blacks look lighter.",
             _brightnessSlider,
             _brightnessValueLabel));
-        AddContent(content, CreateHotkeysCard());
-        AddContent(content, CreateLimitationsNote());
+        ConfigureMonitorBrightnessPanel(adjustableMonitors ?? []);
+        AddContent(_contentPanel, _monitorBrightnessPanel);
+        AddContent(_contentPanel, CreateHotkeysCard());
+        AddContent(_contentPanel, CreateLimitationsNote());
 
-        _scrollPanel.Controls.Add(content);
+        _scrollPanel.Controls.Add(_contentPanel);
         root.Controls.Add(_scrollPanel, 0, 0);
         root.Controls.Add(CreateFooter(), 0, 1);
         Controls.Add(root);
@@ -129,6 +156,7 @@ internal sealed class SettingsForm : Form
         _saturationSlider.ValueChanged += HandleDisplayValueChanged;
         _brightnessSlider.ValueChanged += HandleDisplayValueChanged;
         _previewTimer.Tick += HandlePreviewTimerTick;
+        _monitorBrightnessTimer.Tick += HandleMonitorBrightnessTimerTick;
         _scrollPanel.ClientSizeChanged += (_, _) => UpdateWrappingWidths();
         Shown += HandleShown;
         FormClosing += HandleFormClosing;
@@ -315,6 +343,103 @@ internal sealed class SettingsForm : Form
         return footer;
     }
 
+    internal void RefreshMonitorBrightnessControls(
+        IReadOnlyList<MonitorBrightnessInfo> adjustableMonitors)
+    {
+        ConfigureMonitorBrightnessPanel(adjustableMonitors);
+        if (IsHandleCreated && !IsDisposed)
+        {
+            BeginInvoke(new MethodInvoker(FitWindowToContent));
+        }
+    }
+
+    private void ConfigureMonitorBrightnessPanel(
+        IReadOnlyList<MonitorBrightnessInfo> adjustableMonitors)
+    {
+        var existingValues = _monitorBrightnessBindings.ToDictionary(
+            binding => binding.Monitor.Id,
+            binding => binding.Slider.Value,
+            StringComparer.OrdinalIgnoreCase);
+
+        _monitorBrightnessPanel.SuspendLayout();
+        while (_monitorBrightnessPanel.Controls.Count > 0)
+        {
+            var control = _monitorBrightnessPanel.Controls[0];
+            RemoveWrappingLabels(control);
+            _monitorBrightnessPanel.Controls.Remove(control);
+            control.Dispose();
+        }
+
+        _monitorBrightnessPanel.RowStyles.Clear();
+        _monitorBrightnessPanel.RowCount = 0;
+        _monitorBrightnessBindings.Clear();
+        _monitorBrightnessPanel.AutoSize = true;
+        _monitorBrightnessPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        _monitorBrightnessPanel.BackColor = WindowBackground;
+        _monitorBrightnessPanel.ColumnCount = 1;
+        _monitorBrightnessPanel.Dock = DockStyle.Top;
+        _monitorBrightnessPanel.Margin = Padding.Empty;
+        _monitorBrightnessPanel.Padding = Padding.Empty;
+        if (_monitorBrightnessPanel.ColumnStyles.Count == 0)
+        {
+            _monitorBrightnessPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        }
+
+        foreach (var monitor in adjustableMonitors)
+        {
+            var slider = new DarkSlider();
+            var valueLabel = new Label();
+            slider.AccessibleName = $"{monitor.DisplayName} physical backlight";
+            ConfigureSlider(slider, 0, 100, 1, 10);
+            var card = CreateSliderCard(
+                $"Physical backlight — {monitor.DisplayName}",
+                "Controls this monitor's hardware backlight through DDC/CI. This setting remains on the monitor after SuperLighter exits.",
+                slider,
+                valueLabel);
+            slider.Value = existingValues.GetValueOrDefault(
+                monitor.Id,
+                monitor.BrightnessPercent);
+            var binding = new MonitorBrightnessBinding
+            {
+                Monitor = monitor,
+                Slider = slider,
+                ValueLabel = valueLabel
+            };
+            _monitorBrightnessBindings.Add(binding);
+            _initialMonitorBrightness.TryAdd(monitor.Id, monitor.BrightnessPercent);
+            slider.ValueChanged += HandleMonitorBrightnessValueChanged;
+            AddContent(_monitorBrightnessPanel, card);
+        }
+
+        var currentMonitorIds = _monitorBrightnessBindings
+            .Select(binding => binding.Monitor.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var pendingMonitorId in _pendingMonitorBrightness.Keys.ToArray())
+        {
+            if (!currentMonitorIds.Contains(pendingMonitorId))
+            {
+                _pendingMonitorBrightness.Remove(pendingMonitorId);
+            }
+        }
+
+        _monitorBrightnessPanel.Visible = _monitorBrightnessBindings.Count > 0;
+        _monitorBrightnessPanel.ResumeLayout(performLayout: true);
+        UpdateValueLabels();
+    }
+
+    private void RemoveWrappingLabels(Control control)
+    {
+        if (control is Label label)
+        {
+            _wrappingLabels.Remove(label);
+        }
+
+        foreach (Control child in control.Controls)
+        {
+            RemoveWrappingLabels(child);
+        }
+    }
+
     private TableLayoutPanel CreateCard() => new()
     {
         AutoSize = true,
@@ -420,14 +545,68 @@ internal sealed class SettingsForm : Form
         _preview(BuildCurrentSettings());
     }
 
+    private void HandleMonitorBrightnessValueChanged(object? sender, EventArgs eventArgs)
+    {
+        var binding = _monitorBrightnessBindings.FirstOrDefault(candidate =>
+            ReferenceEquals(candidate.Slider, sender));
+        if (binding is null)
+        {
+            return;
+        }
+
+        UpdateValueLabels();
+        _pendingMonitorBrightness[binding.Monitor.Id] = binding.Slider.Value;
+        _monitorBrightnessTimer.Stop();
+        _monitorBrightnessTimer.Start();
+    }
+
+    private void HandleMonitorBrightnessTimerTick(object? sender, EventArgs eventArgs)
+    {
+        _monitorBrightnessTimer.Stop();
+        ApplyPendingMonitorBrightness();
+    }
+
+    private void ApplyPendingMonitorBrightness()
+    {
+        var pendingChanges = _pendingMonitorBrightness.ToArray();
+        _pendingMonitorBrightness.Clear();
+        foreach (var (monitorId, brightnessPercent) in pendingChanges)
+        {
+            var succeeded = _setMonitorBrightness(monitorId, brightnessPercent);
+            var binding = _monitorBrightnessBindings.FirstOrDefault(candidate =>
+                string.Equals(
+                    candidate.Monitor.Id,
+                    monitorId,
+                    StringComparison.OrdinalIgnoreCase));
+            if (binding is not null)
+            {
+                binding.ValueLabel.ForeColor = succeeded ? Accent : ErrorText;
+            }
+        }
+    }
+
     private void HandleShown(object? sender, EventArgs eventArgs)
+    {
+        FitWindowToContent();
+    }
+
+    private void FitWindowToContent()
     {
         var workingArea = Screen.FromControl(this).WorkingArea;
         var targetWidth = Math.Min(820, Math.Max(MinimumSize.Width, workingArea.Width - 32));
-        var targetHeight = Math.Min(1120, Math.Max(MinimumSize.Height, workingArea.Height - 32));
-        Size = new Size(targetWidth, targetHeight);
-        CenterToScreen();
+        Width = targetWidth;
         UpdateWrappingWidths();
+        PerformLayout();
+
+        var nonClientHeight = Height - ClientSize.Height;
+        var desiredClientHeight =
+            _contentPanel.PreferredSize.Height +
+            _scrollPanel.Padding.Vertical +
+            FooterHeight;
+        Height = Math.Min(
+            workingArea.Height - 32,
+            Math.Max(MinimumSize.Height, desiredClientHeight + nonClientHeight));
+        CenterToScreen();
     }
 
     private void UpdateWrappingWidths()
@@ -445,6 +624,10 @@ internal sealed class SettingsForm : Form
         _contrastValueLabel.Text = $"{_contrastSlider.Value}%";
         _saturationValueLabel.Text = $"{_saturationSlider.Value}%";
         _brightnessValueLabel.Text = $"{_brightnessSlider.Value}%";
+        foreach (var binding in _monitorBrightnessBindings)
+        {
+            binding.ValueLabel.Text = $"{binding.Slider.Value}%";
+        }
     }
 
     private AppSettings BuildCurrentSettings()
@@ -455,6 +638,11 @@ internal sealed class SettingsForm : Form
         settings.ContrastPercent = _contrastSlider.Value;
         settings.SaturationPercent = _saturationSlider.Value;
         settings.BrightnessBoostPercent = _brightnessSlider.Value;
+        foreach (var binding in _monitorBrightnessBindings)
+        {
+            settings.MonitorBrightnessPercent[binding.Monitor.Id] = binding.Slider.Value;
+        }
+
         settings.ToggleHotkey = _toggleHotkeyTextBox.Hotkey;
         settings.OpenSettingsHotkey = _openSettingsHotkeyTextBox.Hotkey;
         settings.Normalize();
@@ -475,6 +663,8 @@ internal sealed class SettingsForm : Form
     private void SaveAndClose()
     {
         _previewTimer.Stop();
+        _monitorBrightnessTimer.Stop();
+        ApplyPendingMonitorBrightness();
         var settings = BuildCurrentSettings();
         if (!settings.ToggleHotkey.IsValid || !settings.OpenSettingsHotkey.IsValid)
         {
@@ -514,8 +704,15 @@ internal sealed class SettingsForm : Form
     private void HandleFormClosing(object? sender, FormClosingEventArgs eventArgs)
     {
         _previewTimer.Stop();
+        _monitorBrightnessTimer.Stop();
+        _pendingMonitorBrightness.Clear();
         if (!_saved)
         {
+            foreach (var (monitorId, brightnessPercent) in _initialMonitorBrightness)
+            {
+                _setMonitorBrightness(monitorId, brightnessPercent);
+            }
+
             _preview(_initialSettings.Clone());
         }
     }
@@ -545,6 +742,7 @@ internal sealed class SettingsForm : Form
         if (disposing)
         {
             _previewTimer.Dispose();
+            _monitorBrightnessTimer.Dispose();
             _windowIcon.Dispose();
         }
 

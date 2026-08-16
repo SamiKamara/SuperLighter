@@ -6,11 +6,14 @@ public sealed class AppSettings
 
     public int BrightnessBoostPercent { get; set; }
 
-    public int ContrastPercent { get; set; } = 100;
+    public int ContrastPercent { get; set; } = 120;
 
-    public int GammaPercent { get; set; } = 100;
+    public int GammaPercent { get; set; } = 250;
 
-    public int SaturationPercent { get; set; } = 100;
+    public int SaturationPercent { get; set; } = 140;
+
+    public Dictionary<string, int> MonitorBrightnessPercent { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public HotkeyDefinition ToggleHotkey { get; set; } = HotkeyDefinition.DefaultToggle();
 
@@ -20,8 +23,19 @@ public sealed class AppSettings
     {
         BrightnessBoostPercent = Math.Clamp(BrightnessBoostPercent, 0, 60);
         ContrastPercent = Math.Clamp(ContrastPercent, 50, 200);
-        GammaPercent = Math.Clamp(GammaPercent, 50, 300);
+        GammaPercent = Math.Clamp(GammaPercent, 50, 600);
         SaturationPercent = Math.Clamp(SaturationPercent, 0, 300);
+        var normalizedMonitorBrightness = new Dictionary<string, int>(
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var (monitorId, brightnessPercent) in MonitorBrightnessPercent ?? [])
+        {
+            if (!string.IsNullOrWhiteSpace(monitorId))
+            {
+                normalizedMonitorBrightness[monitorId] = Math.Clamp(brightnessPercent, 0, 100);
+            }
+        }
+
+        MonitorBrightnessPercent = normalizedMonitorBrightness;
         ToggleHotkey ??= HotkeyDefinition.DefaultToggle();
         OpenSettingsHotkey ??= HotkeyDefinition.DefaultOpenSettings();
     }
@@ -33,6 +47,9 @@ public sealed class AppSettings
         ContrastPercent = ContrastPercent,
         GammaPercent = GammaPercent,
         SaturationPercent = SaturationPercent,
+        MonitorBrightnessPercent = new Dictionary<string, int>(
+            MonitorBrightnessPercent,
+            StringComparer.OrdinalIgnoreCase),
         ToggleHotkey = ToggleHotkey.Clone(),
         OpenSettingsHotkey = OpenSettingsHotkey.Clone()
     };

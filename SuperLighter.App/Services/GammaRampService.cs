@@ -63,7 +63,7 @@ internal sealed class GammaRampService : IDisposable
         double gamma)
     {
         contrast = Math.Clamp(contrast, 0.5d, 2d);
-        gamma = Math.Clamp(gamma, 0.5d, 3d);
+        gamma = Math.Clamp(gamma, 0.5d, 6d);
 
         var result = NativeMethods.GammaRamp.CreateEmpty();
         for (var index = 0; index < 256; index++)

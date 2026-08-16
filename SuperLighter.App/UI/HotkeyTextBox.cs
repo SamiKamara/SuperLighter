@@ -17,6 +17,7 @@ internal sealed class HotkeyTextBox : TextBox
         {
             _hotkey = value?.Clone() ?? new HotkeyDefinition();
             Text = _hotkey.ToDisplayString();
+            CenterTextVertically();
             SelectAll();
             HotkeyChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -28,7 +29,27 @@ internal sealed class HotkeyTextBox : TextBox
         ShortcutsEnabled = false;
         TabStop = true;
         TextAlign = HorizontalAlignment.Center;
+        Multiline = true;
+        WordWrap = false;
         Cursor = Cursors.Hand;
+    }
+
+    protected override void OnHandleCreated(EventArgs eventArgs)
+    {
+        base.OnHandleCreated(eventArgs);
+        CenterTextVertically();
+    }
+
+    protected override void OnFontChanged(EventArgs eventArgs)
+    {
+        base.OnFontChanged(eventArgs);
+        CenterTextVertically();
+    }
+
+    protected override void OnResize(EventArgs eventArgs)
+    {
+        base.OnResize(eventArgs);
+        CenterTextVertically();
     }
 
     protected override void OnEnter(EventArgs eventArgs)
@@ -67,5 +88,27 @@ internal sealed class HotkeyTextBox : TextBox
             (NativeMethods.GetAsyncKeyState((int)Keys.LWin) & 0x8000) != 0 ||
             (NativeMethods.GetAsyncKeyState((int)Keys.RWin) & 0x8000) != 0;
         Hotkey = hotkey;
+    }
+
+    private void CenterTextVertically()
+    {
+        if (!IsHandleCreated || ClientSize.Width <= 0 || ClientSize.Height <= 0)
+        {
+            return;
+        }
+
+        var verticalInset = Math.Max(0, (ClientSize.Height - Font.Height) / 2);
+        var formattingRectangle = new NativeMethods.Rect
+        {
+            Left = 1,
+            Top = verticalInset,
+            Right = Math.Max(1, ClientSize.Width - 1),
+            Bottom = Math.Max(verticalInset + 1, ClientSize.Height - verticalInset)
+        };
+        NativeMethods.SendMessage(
+            Handle,
+            NativeMethods.EM_SETRECT,
+            IntPtr.Zero,
+            ref formattingRectangle);
     }
 }
