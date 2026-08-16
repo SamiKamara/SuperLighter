@@ -84,7 +84,7 @@ gh workflow run release.yml --ref main -f tag=v1.3.0
 - Dependencies restore successfully.
 - Formatting is clean.
 - The Release build succeeds without errors.
-- Internal gamma, saturation, shortcut, and UI-construction self-tests pass.
+- Internal gamma, saturation, monitor-brightness mapping, shortcut, and UI-construction self-tests pass.
 - Publishing produces a self-contained Windows x64 executable.
 - A SHA-256 checksum is generated alongside the EXE.
 

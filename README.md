@@ -16,10 +16,11 @@ The repository and its releases are public, so the application can be downloaded
 
 ## Features
 
-- Gamma adjustment from `0.50` to `3.00`
+- Gamma adjustment from `0.50` to `6.00`
 - Contrast adjustment from `50%` to `200%`
 - Saturation adjustment from grayscale (`0%`) to boosted color (`300%`)
 - Click-through, always-on-top brightness overlay from `0%` to `60%`
+- Adaptive physical-backlight controls for monitors that expose DDC/CI brightness adjustment
 - Live preview in a responsive dark-mode settings window
 - Multi-monitor support
 - Configurable global keyboard shortcuts
@@ -33,6 +34,8 @@ The repository and its releases are public, so the application can be downloaded
 - `Ctrl+Alt+O`: open settings
 
 Both shortcuts can be changed in the settings window. Focus a shortcut field and press the new combination; press `Delete` to clear it.
+
+New installations start with enhancement enabled, gamma at `2.50`, contrast at `120%`, saturation at `140%`, and brightness overlay at `0%`.
 
 ## Requirements
 
@@ -56,7 +59,7 @@ dotnet build .\SuperLighter.sln -c Release
 dotnet .\SuperLighter.App\bin\Release\net9.0-windows\SuperLighter.dll --self-test
 ```
 
-The self-test validates settings normalization, shortcut defaults, gamma-ramp generation, saturation-matrix generation, and creation of the main WinForms controls without changing display effects.
+The self-test validates settings normalization, shortcut defaults, gamma-ramp generation, saturation-matrix generation, monitor-brightness value mapping, and creation of the main WinForms controls without changing display effects.
 
 ## Publish a standalone executable
 
@@ -87,6 +90,7 @@ SuperLighter performs a one-time settings migration from the former `%AppData%\S
 - **Gamma and contrast** are composed onto the gamma LUT captured from each display at startup.
 - **Saturation** is applied with the Windows Magnification API full-screen color matrix while preserving the previously active matrix.
 - **Brightness overlay** is a white, non-activating topmost window that passes mouse input through to applications beneath it.
+- **Physical backlight** controls are created per monitor only when Windows can read that monitor's hardware brightness through DDC/CI. Saved values are reapplied when the same monitor is detected again.
 
 The original gamma LUT and color matrix are retained in memory and restored when enhancement is disabled or SuperLighter exits normally.
 
@@ -95,6 +99,7 @@ The original gamma LUT and color matrix are retained in memory and restored when
 - Software cannot exceed a display panel's physical backlight or OLED brightness limit. The overlay changes the rendered image and therefore also raises black levels.
 - HDR, Remote Desktop, exclusive fullscreen, anti-cheat software, another color-management utility, or the display driver can block or replace display effects.
 - Some exclusive-fullscreen applications can cover topmost windows.
+- Physical-backlight controls require working DDC/CI/MCCS support from the monitor, GPU, cable, and any dock or adapter in between. Unsupported displays are omitted automatically.
 - A forced process termination or system crash can prevent normal cleanup; Windows typically resets gamma ramps during display-mode changes or restart.
 
 ## Repository layout
