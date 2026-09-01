@@ -71,6 +71,35 @@ internal static class NativeMethods
         public string Description;
     }
 
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    internal struct DisplayDevice
+    {
+        public int Size;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string DeviceName;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public string DeviceString;
+
+        public uint StateFlags;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public string DeviceId;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public string DeviceKey;
+
+        public static DisplayDevice Create() => new()
+        {
+            Size = Marshal.SizeOf<DisplayDevice>(),
+            DeviceName = string.Empty,
+            DeviceString = string.Empty,
+            DeviceId = string.Empty,
+            DeviceKey = string.Empty
+        };
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     internal struct GammaRamp
     {
@@ -129,6 +158,14 @@ internal static class NativeMethods
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool EnumDisplayDevices(
+        string? device,
+        uint deviceNumber,
+        ref DisplayDevice displayDevice,
+        uint flags);
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

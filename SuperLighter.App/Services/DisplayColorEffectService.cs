@@ -2,14 +2,16 @@ using SuperLighter.App.Native;
 
 namespace SuperLighter.App.Services;
 
-internal sealed class SaturationService : IDisposable
+internal sealed class DisplayColorEffectService : IDisposable
 {
+    internal const float GammaApproximationStrength = 0.35f;
+
     private readonly bool _initialized;
     private readonly bool _originalEffectCaptured;
     private readonly NativeMethods.MagnificationColorEffect _originalEffect;
     private bool _disposed;
 
-    public SaturationService()
+    public DisplayColorEffectService()
     {
         _initialized = NativeMethods.MagInitialize();
         if (!_initialized)
@@ -21,11 +23,17 @@ internal sealed class SaturationService : IDisposable
         _originalEffectCaptured = NativeMethods.MagGetFullscreenColorEffect(ref _originalEffect);
     }
 
-    public bool Apply(AppSettings settings)
+    public bool Apply(AppSettings settings, bool useNvidiaCompatibilityMatrix)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (!settings.Enabled || settings.SaturationPercent == 100)
+        var isNeutral = useNvidiaCompatibilityMatrix
+            ? settings.GammaPercent == 100 &&
+              settings.ContrastPercent == 100 &&
+              settings.SaturationPercent == 100 &&
+              settings.BrightnessBoostPercent == 0
+            : settings.SaturationPercent == 100;
+        if (!settings.Enabled || isNeutral)
         {
             Restore();
             return true;
@@ -36,8 +44,27 @@ internal sealed class SaturationService : IDisposable
             return false;
         }
 
-        var saturationEffect = BuildSaturationEffect(settings.SaturationPercent / 100f);
-        var composedEffect = Multiply(_originalEffect, saturationEffect);
+        var composedEffect = Clone(_originalEffect);
+        if (useNvidiaCompatibilityMatrix)
+        {
+            composedEffect = Multiply(
+                composedEffect,
+                BuildGammaEffect(settings.GammaPercent / 100f));
+            composedEffect = Multiply(
+                composedEffect,
+                BuildContrastEffect(settings.ContrastPercent / 100f));
+        }
+
+        composedEffect = Multiply(
+            composedEffect,
+            BuildSaturationEffect(settings.SaturationPercent / 100f));
+        if (useNvidiaCompatibilityMatrix)
+        {
+            composedEffect = Multiply(
+                composedEffect,
+                BuildBrightnessEffect(settings.BrightnessBoostPercent / 100f));
+        }
+
         return NativeMethods.MagSetFullscreenColorEffect(ref composedEffect);
     }
 
@@ -50,6 +77,28 @@ internal sealed class SaturationService : IDisposable
 
         var originalEffect = Clone(_originalEffect);
         NativeMethods.MagSetFullscreenColorEffect(ref originalEffect);
+    }
+
+    internal static NativeMethods.MagnificationColorEffect BuildGammaEffect(float gamma)
+    {
+        gamma = Math.Clamp(gamma, 0.5f, 6f);
+        var exactMidtone = MathF.Pow(0.5f, 1f / gamma);
+        var approximatedMidtone = 0.5f +
+            (GammaApproximationStrength * (exactMidtone - 0.5f));
+
+        if (approximatedMidtone >= 0.5f)
+        {
+            var inputScale = 2f * (1f - approximatedMidtone);
+            return BuildRgbAffineEffect(inputScale, 1f - inputScale);
+        }
+
+        return BuildRgbAffineEffect(2f * approximatedMidtone, 0f);
+    }
+
+    internal static NativeMethods.MagnificationColorEffect BuildContrastEffect(float contrast)
+    {
+        contrast = Math.Clamp(contrast, 0.5f, 2f);
+        return BuildRgbAffineEffect(contrast, 0.5f * (1f - contrast));
     }
 
     internal static NativeMethods.MagnificationColorEffect BuildSaturationEffect(float saturation)
@@ -74,6 +123,28 @@ internal sealed class SaturationService : IDisposable
         effect.Transform[12] = (blueLuminance * inverse) + saturation;
 
         effect.Transform[18] = 1f;
+        effect.Transform[24] = 1f;
+        return effect;
+    }
+
+    internal static NativeMethods.MagnificationColorEffect BuildBrightnessEffect(float boost)
+    {
+        boost = Math.Clamp(boost, 0f, 0.6f);
+        return BuildRgbAffineEffect(1f - boost, boost);
+    }
+
+    private static NativeMethods.MagnificationColorEffect BuildRgbAffineEffect(
+        float inputScale,
+        float translation)
+    {
+        var effect = NativeMethods.MagnificationColorEffect.CreateEmpty();
+        effect.Transform[0] = inputScale;
+        effect.Transform[6] = inputScale;
+        effect.Transform[12] = inputScale;
+        effect.Transform[18] = 1f;
+        effect.Transform[20] = translation;
+        effect.Transform[21] = translation;
+        effect.Transform[22] = translation;
         effect.Transform[24] = 1f;
         return effect;
     }

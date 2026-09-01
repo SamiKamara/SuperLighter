@@ -4,7 +4,7 @@
   <img src="SuperLighter.App/Assets/SuperLighter.png" alt="SuperLighter icon" width="96" height="96">
 </p>
 
-SuperLighter is a standalone Windows utility for adjusting the rendered desktop image beyond the standard Windows brightness controls. It combines a click-through topmost overlay, the display gamma LUT, and a full-screen color matrix in one lightweight tray application.
+SuperLighter is a standalone Windows utility for adjusting the rendered desktop image beyond the standard Windows brightness controls. It selects a display-effect path compatible with the detected graphics adapter in one lightweight tray application.
 
 ## Download
 
@@ -19,7 +19,7 @@ The repository and its releases are public, so the application can be downloaded
 - Gamma adjustment from `0.50` to `6.00`
 - Contrast adjustment from `50%` to `200%`
 - Saturation adjustment from grayscale (`0%`) to boosted color (`300%`)
-- Click-through, always-on-top brightness overlay from `0%` to `60%`
+- Software brightness adjustment from `0%` to `60%`
 - Adaptive physical-backlight controls for monitors that expose DDC/CI brightness adjustment
 - Live preview in a responsive dark-mode settings window
 - Multi-monitor support
@@ -35,7 +35,7 @@ The repository and its releases are public, so the application can be downloaded
 
 Both shortcuts can be changed in the settings window. Focus a shortcut field and press the new combination; press `Delete` to clear it.
 
-New installations start with enhancement enabled, gamma at `2.50`, contrast at `120%`, saturation at `140%`, and brightness overlay at `0%`.
+New installations start with enhancement enabled, gamma at `2.50`, contrast at `120%`, saturation at `140%`, and software brightness at `0%`.
 
 ## Requirements
 
@@ -59,7 +59,7 @@ dotnet build .\SuperLighter.sln -c Release
 dotnet .\SuperLighter.App\bin\Release\net9.0-windows\SuperLighter.dll --self-test
 ```
 
-The self-test validates settings normalization, shortcut defaults, gamma-ramp generation, saturation-matrix generation, monitor-brightness value mapping, and creation of the main WinForms controls without changing display effects.
+The self-test validates settings normalization, shortcut defaults, NVIDIA adapter routing, legacy gamma-ramp generation, NVIDIA-compatible gamma, contrast, saturation, and brightness matrices, monitor-brightness value mapping, and creation of the main WinForms controls without changing display effects.
 
 ## Publish a standalone executable
 
@@ -87,18 +87,17 @@ SuperLighter performs a one-time settings migration from the former `%AppData%\S
 
 ## How the effects work
 
-- **Gamma and contrast** are composed onto the gamma LUT captured from each display at startup.
-- **Saturation** is applied with the Windows Magnification API full-screen color matrix while preserving the previously active matrix.
-- **Brightness overlay** is a white, non-activating topmost window that passes mouse input through to applications beneath it.
+- **NVIDIA systems** apply gamma, contrast, saturation, and software brightness with the Windows Magnification API full-screen color matrix. Contrast is represented exactly; gamma uses a bounded midtone approximation because a matrix cannot express a nonlinear gamma curve. Software brightness is equivalent to blending a white overlay without depending on a layered topmost window.
+- **Other graphics adapters** retain the original path: gamma and contrast are composed onto each display's captured gamma LUT, saturation uses the full-screen color matrix, and software brightness uses a white, non-activating topmost window that passes mouse input through.
 - **Physical backlight** controls are created per monitor only when Windows can read that monitor's hardware brightness through DDC/CI. Saved values are reapplied when the same monitor is detected again.
 
-The original gamma LUT and color matrix are retained in memory and restored when enhancement is disabled or SuperLighter exits normally.
+NVIDIA detection checks the system display-adapter list by PCI vendor identity, which also covers DisplayLink topologies where the attached desktop output is not itself reported as NVIDIA. The compatibility path does not install or replace the system ICC color profile. The original gamma LUT and color matrix are retained in memory and restored when enhancement is disabled or SuperLighter exits normally.
 
 ## Limitations
 
-- Software cannot exceed a display panel's physical backlight or OLED brightness limit. The overlay changes the rendered image and therefore also raises black levels.
+- Software cannot exceed a display panel's physical backlight or OLED brightness limit. Software brightness changes the rendered image and therefore also raises black levels.
 - HDR, Remote Desktop, exclusive fullscreen, anti-cheat software, another color-management utility, or the display driver can block or replace display effects.
-- Some exclusive-fullscreen applications can cover topmost windows.
+- On non-NVIDIA systems, some exclusive-fullscreen applications can cover the software-brightness topmost window.
 - Physical-backlight controls require working DDC/CI/MCCS support from the monitor, GPU, cable, and any dock or adapter in between. Unsupported displays are omitted automatically.
 - A forced process termination or system crash can prevent normal cleanup; Windows typically resets gamma ramps during display-mode changes or restart.
 

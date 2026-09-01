@@ -44,8 +44,8 @@ The repository and its releases are public. Both links work without authenticati
 6. Create an annotated tag matching the project version, then push it:
 
    ```powershell
-   git tag -a v1.3.0 -m "SuperLighter v1.3.0"
-   git push origin v1.3.0
+   git tag -a v1.3.1 -m "SuperLighter v1.3.1"
+   git push origin v1.3.1
    ```
 
 7. The `Build release` workflow will validate, build, test, publish, hash, and create the GitHub Release.
@@ -55,7 +55,7 @@ The repository and its releases are public. Both links work without authenticati
    gh run list --workflow release.yml --limit 5
    $runId = gh run list --workflow release.yml --limit 1 --json databaseId --jq '.[0].databaseId'
    gh run watch $runId --exit-status
-   gh release view v1.3.0
+   gh release view v1.3.1
    ```
 
 The tag must use exactly `vMAJOR.MINOR.PATCH`, and the numeric portion must match the project `<Version>`. A mismatch fails before publishing.
@@ -67,14 +67,14 @@ If the tag exists but its release workflow needs to be rerun:
 1. Open the repository's **Actions** tab.
 2. Select **Build release**.
 3. Choose **Run workflow**.
-4. Enter the existing tag, such as `v1.3.0`.
+4. Enter the existing tag, such as `v1.3.1`.
 
 The workflow checks out that tag. If the release already exists, its EXE and checksum assets are replaced with freshly built copies; otherwise the release is created.
 
 The equivalent GitHub CLI command is:
 
 ```powershell
-gh workflow run release.yml --ref main -f tag=v1.3.0
+gh workflow run release.yml --ref main -f tag=v1.3.1
 ```
 
 ## What the workflow verifies
@@ -84,7 +84,7 @@ gh workflow run release.yml --ref main -f tag=v1.3.0
 - Dependencies restore successfully.
 - Formatting is clean.
 - The Release build succeeds without errors.
-- Internal gamma, saturation, monitor-brightness mapping, shortcut, and UI-construction self-tests pass.
+- Internal display-adapter routing, legacy gamma-ramp, NVIDIA-compatible color-matrix, monitor-brightness mapping, shortcut, and UI-construction self-tests pass.
 - Publishing produces a self-contained Windows x64 executable.
 - A SHA-256 checksum is generated alongside the EXE.
 

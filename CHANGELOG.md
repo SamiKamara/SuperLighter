@@ -4,6 +4,13 @@ All notable SuperLighter changes are documented here. Versions follow semantic v
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-09-01
+
+### Fixed
+
+- Added an NVIDIA-only compatibility path that applies gamma, contrast, saturation, and software brightness through the working full-screen color matrix. Other display adapters retain the original GDI gamma/contrast, layered software-brightness, and full-screen saturation implementations.
+- Detected NVIDIA adapters by PCI vendor identity across the system display-adapter list, including DisplayLink topologies where the attached desktop output is not itself reported as NVIDIA.
+
 ## [1.3.0] - 2026-08-17
 
 ### Added

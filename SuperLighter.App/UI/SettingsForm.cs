@@ -135,8 +135,8 @@ internal sealed class SettingsForm : Form
             _saturationSlider,
             _saturationValueLabel));
         AddContent(_contentPanel, CreateSliderCard(
-            "Brightness overlay",
-            "Adds a click-through white topmost layer. It lifts dark areas, so high values also make blacks look lighter.",
+            "Software brightness",
+            "Lifts rendered colors toward white. High values also make blacks look lighter.",
             _brightnessSlider,
             _brightnessValueLabel));
         ConfigureMonitorBrightnessPanel(adjustableMonitors ?? []);
@@ -303,7 +303,7 @@ internal sealed class SettingsForm : Form
     {
         var note = CreateWrappingLabel(
             "The app changes the rendered image; it cannot exceed the display panel's physical brightness limit. " +
-            "HDR, Remote Desktop, exclusive fullscreen, or a display driver may restrict gamma, contrast, or saturation effects.",
+            "HDR, Remote Desktop, exclusive fullscreen, or a display driver may restrict gamma, contrast, saturation, or software brightness effects.",
             SecondaryText);
         note.Margin = new Padding(4, 4, 4, 10);
         return note;
